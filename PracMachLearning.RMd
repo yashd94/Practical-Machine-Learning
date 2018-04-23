@@ -1,0 +1,177 @@
+---
+title: "Practical Machine Learning- Course Project"
+author: "Yash Deshpande"
+date: "22 April 2018"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+##Introduction
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+##Data Loading, Exploratory Analyses, and Cleaning
+
+Let's first load the required packages and datasets, and look at a summary of the data. A summary of all the variables measured can be found in the appendix under Ap. 1.
+
+```{r}
+library(caret)
+library(rattle)
+library(ggplot2)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(knitr)
+library(corrplot)
+library(parallel)
+library(doParallel)
+
+cluster <- makeCluster(detectCores()-1)
+registerDoParallel(cluster)
+
+URLTrain <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+URLTest <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+PMLTest <- read.csv(url(URLTest))
+PMLTrain <- read.csv(url(URLTrain))
+
+dim(PMLTrain)
+dim(PMLTest)
+
+```
+
+We can see that the data shows 160 observed variables- 19622 training observations and 20 testing observations.
+
+We first partition the training dataset provided into two sets, so that we have a validation set and can estimate the out-of-sample error more accurately.
+
+Now, we clean the data such that it is better suited to be used for our prediction model. As seen from the summary of the data (Ap. 1), the first 7 variables are time-dependent. We can remove these variables for the purposes of our prediction, along with any variables that contain NA values in the testing dataset provided. We also remove any variables that have near zero variance, along with ID variables (columns 1 through 5).
+
+
+```{r}
+inTrain <- createDataPartition(PMLTrain$classe,p=0.7,list=FALSE)
+
+PMLTrain_train <- PMLTrain[inTrain,]
+PMLTrain_test <- PMLTrain[-inTrain,]
+
+NrZeroVar <- nearZeroVar(PMLTrain_train)
+PMLTrain_train  <- PMLTrain_train[,-NrZeroVar]
+PMLTrain_test <- PMLTrain_test[,-NrZeroVar]
+
+NAVar <- sapply(PMLTrain_train,function(x) mean(is.na(x))) > 0.95
+PMLTrain_train <- PMLTrain_train[,NAVar==FALSE]
+PMLTrain_test <- PMLTrain_test[,NAVar==FALSE]
+
+PMLTrain_train <- PMLTrain_train[,-(1:5)]
+PMLTrain_test <- PMLTrain_test[,-(1:5)]
+
+dim(PMLTrain_train)
+dim(PMLTrain_test)
+```
+
+We have hence reduced the number of predictors from 160 to 54. Note that we have performed all such reductions on the basis of the analyses of a subset of the training dataset provided, in order to avoid overfitting.
+
+##Building a Prediction Model
+
+###Model 1: Decision Tree
+
+For our first model, we consider a simple decision tree. Before going ahead, please refer to Ap. 2 in the Appendix for a correlation plot of the entire dataset.
+
+```{r}
+set.seed(1109)
+DecisionTreeModel <- rpart(classe~., method="class", data=PMLTrain_train)
+fancyRpartPlot(DecisionTreeModel)
+```
+
+Now, we use the testing subset of the training dataset created earlier in order to test our model. 
+
+```{r}
+pred_DT <- predict(DecisionTreeModel, newdata = PMLTrain_test, type="class")
+DTConfusionMatrix <- confusionMatrix(pred_DT, PMLTrain_test$classe)
+DTConfusionMatrix
+```
+
+The decision tree method offers us ~72% prediction accuracy. We visualise the predictions from this method below:
+
+```{r}
+plot(DTConfusionMatrix$table,col=DTConfusionMatrix$byClass, main=paste("Decision Tree Model- Accuracy =", round(DTConfusionMatrix$overall['Accuracy'],4)))
+```.4
+
+###Model 2: Random Forest
+
+For our second model, we consider a random forest. 
+
+```{r}
+set.seed(1109)
+RFControl <- trainControl(method="cv", number=3, verboseIter = FALSE, allowParallel = TRUE)
+RandomForestModel <- train(classe~., method="rf", data=PMLTrain_train, trControl = RFControl)
+RandomForestModel$finalModel
+
+```
+
+Now, we use the testing subset of the training dataset created earlier in order to test our model. 
+
+```{r}
+pred_RF <- predict(RandomForestModel, newdata = PMLTrain_test)
+RFConfusionMatrix <- confusionMatrix(pred_RF, PMLTrain_test$classe)
+RFConfusionMatrix
+```
+
+The random forest method offers us ~99.6% prediction accuracy. We visualise the predictions from this method below:
+
+```{r}
+plot(RFConfusionMatrix$table,col=RFConfusionMatrix$byClass, main=paste("Random Forest Model- Accuracy =", round(RFConfusionMatrix$overall['Accuracy'],4)))
+```
+
+###Model 3: Generalized Boosted Model (GBM)
+
+For our third model, we consider a GBM. 
+
+```{r}
+set.seed(1109)
+GBMControl <- trainControl(method="repeatedcv", number=5, repeats=1, allowParallel = TRUE)
+GBMModel <- train(classe~., method="gbm", data=PMLTrain_train, trControl=GBMControl, verbose=FALSE)
+GBMModel$finalModel
+stopCluster(cluster)
+```
+
+Now, we use the testing subset of the training dataset created earlier in order to test our model. 
+
+```{r}
+pred_GBM <- predict(GBMModel, newdata = PMLTrain_test)
+GBMConfusionMatrix <- confusionMatrix(pred_GBM, PMLTrain_test$classe)
+GBMConfusionMatrix
+```
+
+The GBM method offers us ~98.4% prediction accuracy. We visualise the predictions from this method below:
+  
+```{r}
+plot(GBMConfusionMatrix$table,col=GBMConfusionMatrix$byClass, main=paste("Generalized Boosted Model- Accuracy =", round(GBMConfusionMatrix$overall['Accuracy'],4)))
+```
+
+##Conclusion
+
+Since the random forest model offers the highest accuracy, ~99,6%, this model will be chosen as the final model. This model will also be applied to the testing dataset provided. From testing on the validation data we created, we can also approximate the out-of-sample error to be 0.32%.
+
+
+```{r}
+FinalPred_RF <- predict(RandomForestModel, newdata = PMLTest)
+FinalPred_RF
+```
+
+##Appendix
+
+###Ap. 1- Summary of the training dataset
+```{r}
+str(PMLTrain)
+```
+
+###Ap. 2- Correlation between Variables
+
+In the plot below, highly correlated variables are shown in darker colours.
+
+```{r}
+correlationMatrix <- cor(PMLTrain_train[,-54])
+corrplot(correlationMatrix,method="color",type="lower",tl.cex=0.8,tl.col=rgb(0,0,0))
+```
