@@ -8,11 +8,11 @@ output:
   pdf_document: default
   word_document: default
 ---
-##Introduction
+## Introduction
 
 Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
 
-##Data Loading, Exploratory Analyses, and Cleaning
+## Data Loading, Exploratory Analyses, and Cleaning
 
 Let's first load the required packages and datasets, and look at a summary of the data. A summary of all the variables measured can be found in the appendix under Ap. 1.
 
@@ -72,9 +72,9 @@ dim(PMLTrain_test)
 
 We have hence reduced the number of predictors from 160 to 54. Note that we have performed all such reductions on the basis of the analyses of a subset of the training dataset provided, in order to avoid overfitting.
 
-##Building a Prediction Model
+## Building a Prediction Model
 
-###Model 1: Decision Tree
+### Model 1: Decision Tree
 
 For our first model, we consider a simple decision tree. Before going ahead, please refer to Ap. 2 in the Appendix for a correlation plot of the entire dataset.
 
@@ -96,9 +96,9 @@ The decision tree method offers us ~72% prediction accuracy. We visualise the pr
 
 ```{r}
 plot(DTConfusionMatrix$table,col=DTConfusionMatrix$byClass, main=paste("Decision Tree Model- Accuracy =", round(DTConfusionMatrix$overall['Accuracy'],4)))
-```.4
+```
 
-###Model 2: Random Forest
+### Model 2: Random Forest
 
 For our second model, we consider a random forest. 
 
@@ -124,7 +124,7 @@ The random forest method offers us ~99.6% prediction accuracy. We visualise the 
 plot(RFConfusionMatrix$table,col=RFConfusionMatrix$byClass, main=paste("Random Forest Model- Accuracy =", round(RFConfusionMatrix$overall['Accuracy'],4)))
 ```
 
-###Model 3: Generalized Boosted Model (GBM)
+### Model 3: Generalized Boosted Model (GBM)
 
 For our third model, we consider a GBM. 
 
@@ -150,7 +150,7 @@ The GBM method offers us ~98.4% prediction accuracy. We visualise the prediction
 plot(GBMConfusionMatrix$table,col=GBMConfusionMatrix$byClass, main=paste("Generalized Boosted Model- Accuracy =", round(GBMConfusionMatrix$overall['Accuracy'],4)))
 ```
 
-##Conclusion
+## Conclusion
 
 Since the random forest model offers the highest accuracy, ~99,6%, this model will be chosen as the final model. This model will also be applied to the testing dataset provided. From testing on the validation data we created, we can also approximate the out-of-sample error to be 0.32%.
 
@@ -160,14 +160,14 @@ FinalPred_RF <- predict(RandomForestModel, newdata = PMLTest)
 FinalPred_RF
 ```
 
-##Appendix
+## Appendix
 
-###Ap. 1- Summary of the training dataset
+### Ap. 1- Summary of the training dataset
 ```{r}
 str(PMLTrain)
 ```
 
-###Ap. 2- Correlation between Variables
+### Ap. 2- Correlation between Variables
 
 In the plot below, highly correlated variables are shown in darker colours.
 
